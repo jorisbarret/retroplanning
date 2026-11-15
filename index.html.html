@@ -1,0 +1,1713 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retroplanning - Suivi des operations</title>
+<style>
+  /* --- Mise en page generale --- */
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f5f7;
+    color: #222;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px 0; }
+  .sous-titre { color: #666; font-size: 14px; margin-bottom: 18px; }
+
+  .carte {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  /* --- Reglages du projet --- */
+  .reglages { display: flex; flex-wrap: wrap; gap: 16px; }
+  .reglages label { font-size: 13px; color: #555; display: block; margin-bottom: 4px; }
+  .reglages input {
+    font-size: 14px; padding: 6px; border: 1px solid #bbb;
+    border-radius: 4px; background: #fff;
+  }
+
+  /* --- Bandeau de synthese --- */
+  .synthese { display: flex; flex-wrap: wrap; gap: 24px; }
+  .bloc-synthese { min-width: 150px; }
+  .bloc-synthese .etiquette { font-size: 12px; color: #777; text-transform: uppercase; }
+  .bloc-synthese .valeur { font-size: 18px; font-weight: bold; margin-top: 3px; }
+  .rouge { color: #c0392b; }
+  .vert { color: #217a45; }
+
+  /* --- Tableau --- */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th {
+    text-align: left; background: #eef0f3; color: #444;
+    padding: 8px; border-bottom: 2px solid #d5d9de; font-size: 13px;
+  }
+  td { padding: 7px 8px; border-bottom: 1px solid #eceef1; vertical-align: middle; }
+  tr.faite td { background: #f2faf5; color: #6a6a6a; }
+  tr.faite .nom { text-decoration: line-through; }
+  tr.en-cours td { background: #fff8e8; }
+  tr.retard td { background: #fdf0ee; }
+
+  input.nom { width: 96%; font-size: 14px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; }
+  input.duree { width: 52px; font-size: 14px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; }
+  select.unite { font-size: 13px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; }
+  input.case { width: 18px; height: 18px; cursor: pointer; }
+
+  .date { white-space: nowrap; font-size: 13px; }
+  .date .jour { color: #888; font-size: 12px; }
+
+  .badge {
+    display: inline-block; font-size: 11px; padding: 2px 7px;
+    border-radius: 10px; white-space: nowrap;
+  }
+  .badge-a-venir { background: #e7ecf5; color: #34495e; }
+  .badge-encours { background: #fbe6b6; color: #7a5200; }
+  .badge-faite   { background: #d8f0e0; color: #1d6b3f; }
+  .badge-retard  { background: #f8d7d2; color: #96261a; }
+
+  .barre-fond {
+    background: #edf0f3; height: 14px; border-radius: 7px; overflow: hidden;
+    min-width: 90px;
+  }
+  .barre { height: 14px; background: #4a7ab5; border-radius: 7px; }
+  .barre.faite { background: #4caf7d; }
+  .barre.retard { background: #d9694f; }
+
+  button {
+    font-size: 13px; padding: 6px 11px; border: 1px solid #c3c8ce;
+    background: #fff; border-radius: 4px; cursor: pointer;
+  }
+  button:hover { background: #f0f2f5; }
+  button.suppr { color: #a33; border-color: #e3c4c0; }
+  button.ajout { background: #2d6cdf; color: #fff; border-color: #2d6cdf; }
+  button.ajout:hover { background: #2458b8; }
+
+  .barre-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+  #messages { font-size: 13px; color: #96261a; margin-top: 10px; }
+  #messages .info { color: #217a45; }
+
+  .aide { font-size: 12px; color: #777; margin-top: 14px; line-height: 1.5; }
+
+  /* --- Diagramme visuel (barres) --- */
+  .diagramme { overflow-x: auto; }
+  .ligne-diag { display: flex; align-items: center; height: 30px; }
+  .etiquette-diag {
+    width: 190px; min-width: 190px; font-size: 13px;
+    padding-right: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .piste { position: relative; flex: 1; height: 30px; min-width: 420px; }
+  .piste .grille { position: absolute; top: 0; bottom: 0; border-left: 1px solid #e7e9ec; }
+  .barre-diag {
+    position: absolute; top: 7px; height: 16px; border-radius: 8px;
+    background: #4a7ab5; cursor: pointer;
+  }
+  .barre-diag.faite   { background: #4caf7d; }
+  .barre-diag.retard  { background: #d9694f; }
+  .barre-diag.encours { background: #e0a12b; }
+  .barre-diag span {
+    position: absolute; left: 100%; margin-left: 6px; top: -1px;
+    font-size: 11px; color: #555; white-space: nowrap;
+  }
+  .entete-diag { display: flex; margin-bottom: 4px; }
+  .entete-diag .etiquette-diag { font-size: 12px; color: #777; text-transform: uppercase; }
+  .entete-diag .piste { height: 20px; }
+  .date-diag { position: absolute; top: 0; font-size: 11px; color: #777; }
+  .ligne-butoir { display: flex; height: 18px; position: relative; }
+  .ligne-butoir .etiquette-diag { font-size: 11px; color: #96261a; text-align: right; }
+  .ligne-butoir .piste { border-top: 1px dashed transparent; }
+  .repere-butoir {
+    position: absolute; top: 0; bottom: 0; border-left: 2px dashed #c0392b;
+  }
+  .repere-butoir b {
+    position: absolute; top: -2px; left: 5px; font-size: 11px;
+    color: #c0392b; white-space: nowrap; font-weight: normal;
+  }
+  .repere-aujourdhui {
+    position: absolute; top: 0; bottom: 0; border-left: 2px solid #2d6cdf;
+  }
+  .repere-aujourdhui i {
+    position: absolute; top: -2px; left: 5px; font-size: 11px;
+    color: #2d6cdf; font-style: normal; white-space: nowrap;
+  }
+  .legende { font-size: 12px; color: #666; margin-top: 10px; }
+  .pastille {
+    display: inline-block; width: 11px; height: 11px; border-radius: 6px;
+    margin-right: 4px; vertical-align: -1px;
+  }
+
+  /* --- Onglets --- */
+  .onglets { margin-bottom: 16px; }
+  .onglet {
+    font-size: 14px; padding: 9px 18px; margin-right: 6px;
+    border: 1px solid #c3c8ce; background: #eceef1;
+    border-radius: 5px 5px 0 0; cursor: pointer; color: #555;
+  }
+  .onglet.actif {
+    background: #fff; color: #1a4d8f; font-weight: bold;
+    border-bottom-color: #fff;
+  }
+  .onglet:hover { background: #fff; }
+
+  /* --- Gantt facon Excel : tableau a gauche, barres a droite --- */
+  .gantt-ensemble { display: flex; gap: 0; align-items: flex-start; }
+  .gantt-tableau { min-width: 620px; }
+  .gantt-tableau table { font-size: 13px; }
+  .gantt-tableau th { background: #b8860b; color: #fff; border-bottom: none; }
+  .gantt-tableau td { padding: 5px 8px; white-space: nowrap; }
+  .gantt-graphique { flex: 1; overflow: hidden; padding-left: 14px; }
+  .gantt-defile { overflow-x: auto; padding-bottom: 8px; }
+
+  /* Bandeau des mois */
+  .gantt-mois { display: flex; height: 20px; }
+  .gantt-mois .mois {
+    font-size: 11px; font-weight: bold; color: #444;
+    border-left: 1px solid #ccc; border-bottom: 1px solid #ccc;
+    padding-left: 4px; box-sizing: border-box; overflow: hidden;
+    white-space: nowrap;
+  }
+
+  /* Bandeau des numeros de jour */
+  .gantt-jours { display: flex; height: 24px; }
+  .gantt-jours .case-jour {
+    width: 22px; box-sizing: border-box;
+    border-right: 1px solid #e3e6ea; border-bottom: 1px solid #ccc;
+    font-size: 10px; color: #666; text-align: center; line-height: 24px;
+    flex: 0 0 auto;
+  }
+  .gantt-jours .case-jour.repos { background: #f0f1f3; color: #a8adb4; }
+  .gantt-jours .case-jour.auj { background: #dbe8fa; color: #1a4d8f; font-weight: bold; }
+
+  /* Une ligne de graphique */
+  .ligne-gantt { display: flex; position: relative; height: 26px; }
+  .case-graph {
+    width: 22px; box-sizing: border-box; flex: 0 0 auto;
+    border-right: 1px solid #f0f1f3; position: relative;
+  }
+  .case-graph.repos { background: #f7f8f9; }
+  .bloc-jour { position: absolute; inset: 4px 0; background: #b9cce4; }
+  .bloc-jour.rempli { background: #2f6fb5; }
+
+  .ligne-gantt .repere-butoir {
+    position: absolute; top: 0; bottom: 0; width: 0;
+    border-left: 2px dashed #c0392b; z-index: 3;
+  }
+  .ligne-gantt .repere-aujourdhui {
+    position: absolute; top: 0; bottom: 0; width: 0;
+    border-left: 2px solid #2d6cdf; z-index: 3;
+  }
+
+  .info-resserrage {
+    font-size: 13px; color: #7a5200; background: #fdf4e0;
+    border: 1px solid #e8cf95; border-radius: 5px;
+    padding: 9px 12px; margin-bottom: 10px;
+  }
+  .rappel-synchro {
+    font-size: 13px; color: #1a4d8f; background: #eaf1fb;
+    border: 1px solid #c5d8f2; border-radius: 5px;
+    padding: 9px 12px; margin-bottom: 12px;
+  }
+
+  .gantt-noms { min-width: 210px; border-right: 2px solid #b8860b; background: #fff; }
+  .ligne-nom {
+    height: 26px; line-height: 26px; font-size: 12.5px; color: #333;
+    padding: 0 10px 0 8px; box-sizing: border-box;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    border-bottom: 1px solid #f0f2f4;
+  }
+  .ligne-nom:nth-child(even) { background: #fbfcfd; }
+  .ligne-nom.titre-nom { background: #f0e2c0; color: #6b4c00; font-weight: bold; height: 44px; line-height: 44px; }
+  .ligne-nom.choisie { background: #dbe8fa; }
+
+  /* --- Gantt : cadre general --- */
+  .gantt-cadre { display: flex; align-items: stretch; border: 1px solid #d5d9de; border-radius: 5px; overflow: hidden; background: #fff; }
+  .gantt-tableau { min-width: 600px; border-right: 2px solid #b8860b; }
+  .gantt-tableau-titre {
+    background: #b8860b; color: #fff; font-weight: bold; font-size: 13px;
+    padding: 8px 10px;
+  }
+  .gantt-tableau-corps { max-height: 560px; overflow-y: auto; }
+  .gantt-tableau table { font-size: 12.5px; width: 100%; }
+  .gantt-tableau th { background: #f0e2c0; color: #6b4c00; border-bottom: 1px solid #d8c8a0; padding: 6px; }
+  .gantt-tableau td { padding: 4px 6px; border-bottom: 1px solid #eef0f2; white-space: nowrap; }
+  .gantt-tableau tr { height: 26px; }
+  .gantt-tableau tr.ligne-choisie td { background: #dbe8fa; }
+  .cellule-av { display: flex; align-items: center; gap: 5px; }
+  .jauge { width: 52px; height: 9px; background: #e6e9ed; border-radius: 5px; overflow: hidden; }
+  .jauge-rempli { height: 9px; background: #2f6fb5; }
+  .av-texte { font-size: 11px; color: #555; }
+
+  /* --- Gantt : la zone du diagramme --- */
+  .gantt-graphique { flex: 1; overflow: hidden; }
+  .gantt-defile { overflow: auto; max-height: 620px; }
+  .gantt-mois { display: flex; height: 20px; position: sticky; top: 0; z-index: 5; background: #fafbfc; }
+  .gantt-mois .mois {
+    font-size: 11px; font-weight: bold; color: #555;
+    border-left: 1px solid #c9ced4; border-bottom: 1px solid #c9ced4;
+    padding-left: 4px; box-sizing: border-box; overflow: hidden; white-space: nowrap;
+  }
+  .gantt-jours { display: flex; height: 22px; position: sticky; top: 20px; z-index: 5; background: #fafbfc; }
+  .gantt-jours .case-jour {
+    box-sizing: border-box; flex: 0 0 auto;
+    border-right: 1px solid #e7eaee; border-bottom: 1px solid #c9ced4;
+    font-size: 10px; color: #6b7280; text-align: center; line-height: 22px;
+  }
+  .gantt-jours .case-jour.repos { background: #f2f3f5; }
+  .gantt-jours .case-jour.auj { background: #dbe8fa; color: #1a4d8f; font-weight: bold; }
+
+  .ligne-gantt { position: relative; height: 26px; }
+  .ligne-gantt:nth-child(even) { background: #fbfcfd; }
+  .case-graph { position: absolute; top: 0; bottom: 0; box-sizing: border-box; }
+  .case-graph.repos { background: #f4f5f7; }
+  .grille-mois { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed #dde1e6; z-index: 1; }
+
+  /* --- La barre, en escalier, deplacable --- */
+  .barre {
+    position: absolute; top: 4px; height: 18px; border-radius: 4px;
+    cursor: grab; z-index: 4; overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+    border: 1px solid rgba(0,0,0,0.12);
+  }
+  .barre.choisie { outline: 2px solid #1a4d8f; outline-offset: 1px; }
+  .barre.esc-0 { background: #4a7ab5; }
+  .barre.esc-1 { background: #5b8ac9; }
+  .barre.esc-2 { background: #6d99d6; }
+  .barre.esc-3 { background: #7fa8e0; }
+  .barre.etat-encours { background: #e0a12b; }
+  .barre.etat-faite   { background: #4caf7d; }
+  .barre.etat-retard  { background: #d9694f; }
+  .barre-avance {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: rgba(0,0,0,0.25);
+  }
+  .barre-texte {
+    position: absolute; left: 0; right: 0; top: 0;
+    text-align: center; font-size: 10px; color: #fff; line-height: 18px;
+    z-index: 2; pointer-events: none;
+  }
+
+  .repere-butoir {
+    position: absolute; top: 0; bottom: 0; width: 0;
+    border-left: 2px dashed #c0392b; z-index: 6; pointer-events: none;
+  }
+  .repere-aujourdhui {
+    position: absolute; top: 0; bottom: 0; width: 0;
+    border-left: 2px solid #2d6cdf; z-index: 6; pointer-events: none;
+  }
+
+  /* --- Le detail de la tache selectionnee --- */
+  .detail-ligne { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+  .detail-ligne label { display: block; font-size: 12px; color: #666; margin-bottom: 3px; }
+  .detail-ligne input, .detail-ligne select {
+    font-size: 13px; padding: 5px; border: 1px solid #c3c8ce; border-radius: 4px;
+  }
+
+  /* Avancement reglable */
+  .avancement-cellule { display: flex; align-items: center; gap: 6px; }
+  .curseur { width: 82px; }
+  .valeur-av { font-size: 12px; color: #333; min-width: 38px; }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    button, .barre-actions, .aide { display: none; }
+    .carte { border: none; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Retroplanning - Suivi des operations</h1>
+<div class="sous-titre" id="sousTitre">
+  Chaque operation s'empile apres la precedente. Si une duree change, tout ce qui suit se decale.
+</div>
+
+<!-- ================= ONGLETS ================= -->
+<div class="onglets">
+  <button class="onglet actif" id="ongletSuivi" onclick="afficherOnglet('suivi')">
+    1. Tableau de suivi
+  </button>
+  <button class="onglet" id="ongletGantt" onclick="afficherOnglet('gantt')">
+    2. Diagramme de Gantt
+  </button>
+</div>
+
+<div id="pageSuivi">
+
+<!-- ================= REGLAGES ================= -->
+<div class="carte">
+  <div class="reglages">
+    <div>
+      <label for="dateDebut">Date de debut</label>
+      <input type="date" id="dateDebut">
+    </div>
+    <div>
+      <label for="dateButoir">Date butoir</label>
+      <input type="date" id="dateButoir">
+    </div>
+    <div>
+      <label for="densite">Densite de travail</label>
+      <select id="densite">
+        <option value="1">Jours ouvres uniquement (lundi-vendredi)</option>
+        <option value="2">Tous les jours de la semaine</option>
+      </select>
+    </div>
+    <div>
+      <label for="heures">Heures par jour travaille</label>
+      <input type="number" id="heures" value="7" min="1" max="24" style="width:70px">
+    </div>
+  </div>
+</div>
+
+<!-- ================= SYNTHESE ================= -->
+<div class="carte">
+  <div class="synthese">
+    <div class="bloc-synthese">
+      <div class="etiquette">Fin prevue</div>
+      <div class="valeur" id="finPrevue">-</div>
+    </div>
+    <div class="bloc-synthese">
+      <div class="etiquette">Date butoir</div>
+      <div class="valeur" id="butoirAffiche">-</div>
+    </div>
+    <div class="bloc-synthese">
+      <div class="etiquette">Ecart</div>
+      <div class="valeur" id="ecart">-</div>
+    </div>
+    <div class="bloc-synthese">
+      <div class="etiquette">Charge totale</div>
+      <div class="valeur" id="charge">-</div>
+    </div>
+    <div class="bloc-synthese">
+      <div class="etiquette">Avancement</div>
+      <div class="valeur" id="avancement">-</div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TABLEAU ================= -->
+<div class="carte">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:34px">Fait</th>
+        <th>Operation</th>
+        <th style="width:120px">Duree</th>
+        <th style="width:190px">Debut</th>
+        <th style="width:190px">Fin</th>
+        <th style="width:110px">Etat</th>
+        <th style="width:100px">Priorite</th>
+        <th style="width:130px">Avancement</th>
+        <th style="width:80px">Depend.</th>
+        <th style="width:50px"></th>
+      </tr>
+    </thead>
+    <tbody id="corps"></tbody>
+  </table>
+
+  <div class="barre-actions">
+    <button class="ajout" onclick="ajouterOperation()">+ Ajouter une operation</button>
+    <button onclick="reinitialiser()">Reinitialiser (operations par defaut)</button>
+    <button onclick="window.print()">Imprimer / PDF</button>
+  </div>
+
+  <div id="messages"></div>
+
+  <div class="aide">
+    <strong>Mode d'emploi.</strong>
+    Cochez la case <em>Fait</em> pour marquer une operation terminee (le calendrier se recalcule a partir de la date du jour).
+    Changez une duree pour voir la date de fin et tout le reste se decaler automatiquement.
+    Les jours samedi et dimanche sont grises dans le calcul quand vous restez en jours ouvres.
+    Tout est enregistre dans le navigateur : vous pouvez fermer la page et revenir plus tard.
+  </div>
+</div>
+
+</div>
+<!-- ============ FIN PAGE 1 ============ -->
+
+<!-- ================= PAGE 2 : LE GANTT ================= -->
+<div id="pageGantt" style="display:none;">
+
+  <div class="carte">
+    <div class="reglages">
+      <div>
+        <label for="zoom">Zoom du diagramme</label>
+        <select id="zoom" onchange="afficherGantt()">
+          <option value="8">Petit (voir tout le projet)</option>
+          <option value="14" selected>Moyen</option>
+          <option value="22">Grand</option>
+          <option value="34">Tres grand</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-resserrage" id="infoResserrage" style="display:none;"></div>
+
+  <div class="rappel-synchro">
+    Ces taches sont <b>les memes</b> que dans le tableau de suivi : toute modification
+    faite ici ou la se retrouve sur l'autre page.
+  </div>
+
+  <div class="gantt-cadre">
+
+    <!-- Colonne de gauche : le nom des taches (l'axe vertical) -->
+    <div class="gantt-noms" id="ganttNoms"></div>
+
+    <!-- Le diagramme -->
+    <div class="gantt-graphique">
+      <div class="gantt-defile" id="ganttDefile">
+        <div id="ganttBandeau"></div>
+        <div id="ganttPistes"></div>
+      </div>
+    </div>
+
+  </div>
+
+  
+<div class="legende" style="margin-top:12px;">
+    <span class="pastille" style="background:#4a7ab5"></span> a venir &nbsp;
+    <span class="pastille" style="background:#e0a12b"></span> en cours &nbsp;
+    <span class="pastille" style="background:#4caf7d"></span> terminee &nbsp;
+    <span class="pastille" style="background:#d9694f"></span> en retard &nbsp;
+    <span class="pastille" style="background:#c0392b;border-radius:1px;width:3px;height:14px"></span> butoir &nbsp;
+    <span class="pastille" style="background:#2d6cdf;border-radius:1px;width:3px;height:14px"></span> aujourd'hui
+    &nbsp;&nbsp;|&nbsp;&nbsp; <b>Attrapez une barre et deplacez-la</b> : tout ce qui suit se decale.
+    &nbsp;&nbsp;|&nbsp;&nbsp; <span id="ganttSelection">Rien de selectionne.</span>
+  </div>
+
+  <div class="aide">
+    <strong>A lire.</strong>
+    Chaque barre se place sur la bande des jours, en partant de gauche (date de debut).
+    Attrapez une barre et deplacez-la : les taches qui en dependent sont reculees automatiquement.
+    Le repere rouge marque la date butoir ; tout ce qui la depasse est hors delai.
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   Retroplanning interactif - version simple
+   Le principe :
+   1. On part de la date de debut.
+   2. Chaque operation prend une duree (en jours ou en heures).
+   3. On empile : la fin d'une operation = le debut de la suivante.
+   4. Si une operation est cochee "faite", elle est consideree terminee
+      aujourd'hui, et la suite repart de la date du jour.
+   5. On regarde a la fin si la fin prevue depasse la date butoir.
+   ========================================================= */
+
+/* ---------- Operations par defaut ---------- */
+/* Vous pouvez les modifier directement dans le tableau.
+   duree  = nombre, unite = "j" (jours) / "h" (heures) / "s" (semaines)
+   apres  = indice de l'operation qui doit etre finie AVANT celle-ci.
+            null = l'operation peut commencer des le debut du projet.
+            Pour mettre une operation EN PARALLELE (superposee) d'une autre,
+            il suffit de lui donner le meme "apres".
+   prio   = niveau de priorite affiche dans le tableau. */
+var OPERATIONS_DEFAUT = [
+  { nom: "Creation des gammes",            duree: 3, unite: "j",   apres: null, prio: "Elevee",  faite: false },
+  { nom: "OF (ordres de fabrication)",     duree: 2, unite: "j",   apres: 0,    prio: "Elevee",  faite: false },
+  { nom: "Outils de lapidage",             duree: 5, unite: "j",   apres: 1,    prio: "Moyenne", faite: false },
+  { nom: "Preparation / prepa de shunts",  duree: 3, unite: "j",   apres: 2,    prio: "Moyenne", faite: false },
+  { nom: "Montage (selon le type)",        duree: 4, unite: "j",   apres: 3,    prio: "Elevee",  faite: false },
+  { nom: "Usinage",                        duree: 1, unite: "s",   apres: 4,    prio: "Critique",faite: false },
+  { nom: "Preparation de surface",         duree: 3, unite: "j",   apres: 5,    prio: "Moyenne", faite: false },
+  { nom: "Polissage",                      duree: 5, unite: "j",   apres: 6,    prio: "Elevee",  faite: false },
+  { nom: "Emaillage",                      duree: 1, unite: "s",   apres: 7,    prio: "Moyenne", faite: false },
+  { nom: "Lapidage / finition",            duree: 1, unite: "s",   apres: 8,    prio: "Moyenne", faite: false },
+  { nom: "Controle",                       duree: 2, unite: "j",   apres: 9,    prio: "Critique",faite: false }
+];
+
+/* ---------- Variables globales ---------- */
+var operations = [];   // la liste des operations
+var fileAttente = null; // sert a eviter de recharger trop souvent
+
+/* ---------- Fonctions utilitaires sur les dates ---------- */
+
+// Transforme une date en texte court : "lun. 17/11"
+function jourLisible(date) {
+  var jours = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
+  var d = String(date.getDate()).padStart(2, "0");
+  var m = String(date.getMonth() + 1).padStart(2, "0");
+  return jours[date.getDay()] + " " + d + "/" + m;
+}
+
+// Transforme une date en texte pour le champ input type=date : "2026-11-17"
+function jourValeur(date) {
+  var d = String(date.getDate()).padStart(2, "0");
+  var m = String(date.getMonth() + 1).padStart(2, "0");
+  return date.getFullYear() + "-" + m + "-" + d;
+}
+
+// Rend une copie d'une date (pour ne pas modifier l'originale)
+function copieDate(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+// Ajoute des jours a une date
+function ajouteJours(date, nombre) {
+  var d = copieDate(date);
+  d.setDate(d.getDate() + nombre);
+  return d;
+}
+
+// Est-ce que ce jour est travaille ?
+// densite 1 = lundi-vendredi seulement, densite 2 = tous les jours
+function jourTravaille(date) {
+  var densite = Number(document.getElementById("densite").value);
+  if (densite === 2) return true;
+  var jour = date.getDay();
+  return jour !== 0 && jour !== 6; // pas dimanche, pas samedi
+}
+
+// Combien d'heures on travaille dans une journee
+function heuresParJour() {
+  var h = Number(document.getElementById("heures").value);
+  if (h < 1 || isNaN(h)) h = 7;
+  return h;
+}
+
+// Convertit la duree d'une operation en heures de travail
+function dureeEnHeures(op) {
+  var h = heuresParJour();
+  if (op.unite === "h") return op.duree;
+  if (op.unite === "s") return op.duree * 5 * h; // 1 semaine = 5 jours ouvres
+  return op.duree * h; // "j"
+}
+
+// Ajoute un nombre d'heures de travail a une date
+function ajouteHeures(debut, heures) {
+  var hParJour = heuresParJour();
+  var d = copieDate(debut);
+  var reste = heures;
+  var securite = 0;
+
+  while (reste > 0 && securite < 2000) {
+    if (!jourTravaille(d)) {
+      d = ajouteJours(d, 1);
+      securite++;
+      continue;
+    }
+    if (reste >= hParJour) {
+      reste = reste - hParJour;
+      d = ajouteJours(d, 1);
+    } else {
+      // la derniere demi-journee : on s'arrete sur ce jour
+      reste = 0;
+    }
+    securite++;
+  }
+  return d;
+}
+
+// Ajoute un nombre de jours OUVRES a une date (utilise pour les decalages internes)
+function ajouteJoursTravailles(date, nombre) {
+  var d = copieDate(date);
+  var ajoutes = 0;
+  var securite = 0;
+  while (ajoutes < nombre && securite < 2000) {
+    d = ajouteJours(d, 1);
+    if (jourTravaille(d)) ajoutes++;
+    securite++;
+  }
+  return d;
+}
+
+/* ---------- Calculs du diagramme (Gantt) ---------- */
+
+// Ajoute un nombre de JOURS OUVRES a une date, en partant du lendemain.
+// Sert a calculer le debut d'une operation qui suit une autre :
+// si A finit vendredi, B commence le lundi.
+function apresJoursOuvres(finPrecedente, nombre) {
+  var d = copieDate(finPrecedente);
+  var ajoutes = 0;
+  var securite = 0;
+  while (ajoutes < nombre && securite < 2000) {
+    d = ajouteJours(d, 1);
+    if (jourTravaille(d)) ajoutes++;
+    securite++;
+  }
+  return d;
+}
+
+// Verifie que chaque "apres" pointe vers une operation qui existe
+// et qui se trouve AVANT elle dans la liste. Sinon on le remet a null,
+// ce qui evite les boucles infinies.
+function nettoyerDependances() {
+  for (var i = 0; i < operations.length; i++) {
+    var a = operations[i].apres;
+    if (a === undefined || a === null || a === "" || isNaN(Number(a))) {
+      operations[i].apres = null;
+    } else {
+      a = Number(a);
+      if (a >= i || a < 0) operations[i].apres = null;
+      else operations[i].apres = a;
+    }
+    if (!operations[i].prio) operations[i].prio = "Moyenne";
+  }
+}
+
+// Cree une dependance A -> B (A finie, B commence).
+// On en profite pour "pousser" les operations qui se trouvent entre les
+// deux, afin qu'aucune date de debut ne soit plus grande que la date de
+// fin de sa dependance (c'est ce qui fait qu'un decalage se propage).
+function creerDependance(iA, iB) {
+  if (iA === iB) return;   // une operation ne peut pas dependre d'elle-meme
+  var bas = Math.min(iA, iB);
+  var haut = Math.max(iA, iB);
+
+  // On evite les boucles : on regarde si "bas" descend deja de "haut"
+  var vus = {};
+  var courant = bas;
+  while (courant !== null && courant !== undefined && !vus[courant]) {
+    vus[courant] = true;
+    if (courant === haut) return;
+    courant = operations[courant].apres;
+  }
+
+  operations[haut].apres = bas;
+
+  // Les operations placees entre les deux sont remises a la suite,
+  // sinon elles pouvaient avoir une date de debut incoherente.
+  for (var i = bas + 1; i < haut; i++) {
+    operations[i].apres = i - 1;
+  }
+}
+
+/* ---------- Lecture et ecriture du stockage local ---------- */
+
+function sauvegarder() {
+  var donnees = {
+    operations: operations,
+    dateDebut: document.getElementById("dateDebut").value,
+    dateButoir: document.getElementById("dateButoir").value,
+    densite: document.getElementById("densite").value,
+    heures: document.getElementById("heures").value
+  };
+  donnees.version = 2;
+  localStorage.setItem("retroplanning_v3", JSON.stringify(donnees));
+}
+
+function charger() {
+  var texte = localStorage.getItem("retroplanning_v3");
+  if (!texte) return false;
+  try {
+    var donnees = JSON.parse(texte);
+
+    // On NE remplace PAS la liste des operations : les 11 operations par
+    // defaut sont deja en place. On restaure seulement ce que vous avez
+    // saisi, une operation a la fois, en les reconnaissant par leur nom.
+    var enregistrees = donnees.operations || [];
+    for (var s = 0; s < enregistrees.length; s++) {
+      var sauv = enregistrees[s];
+      for (var i = 0; i < operations.length; i++) {
+        if (operations[i].nom === sauv.nom) {
+          if (sauv.duree !== undefined) operations[i].duree = sauv.duree;
+          if (sauv.unite !== undefined) operations[i].unite = sauv.unite;
+          if (sauv.prio !== undefined) operations[i].prio = sauv.prio;
+          if (sauv.faite !== undefined) operations[i].faite = sauv.faite;
+          if (sauv.apres !== undefined && sauv.apres !== null) operations[i].apres = sauv.apres;
+          break;
+        }
+      }
+    }
+
+    nettoyerDependances();
+    document.getElementById("dateDebut").value = donnees.dateDebut || "";
+    document.getElementById("dateButoir").value = donnees.dateButoir || "";
+    document.getElementById("densite").value = donnees.densite || "1";
+    document.getElementById("heures").value = donnees.heures || "7";
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/* ---------- Creation du tableau ---------- */
+
+function afficher() {
+  var corps = document.getElementById("corps");
+  corps.innerHTML = "";
+
+  // --- Calcul des dates, une operation apres l'autre ---
+  var debutProjet = new Date(document.getElementById("dateDebut").value);
+  if (isNaN(debutProjet.getTime())) debutProjet = new Date();
+
+  var aujourdhui = copieDate(new Date());
+  var chargeHeures = 0;
+  var faites = 0;
+  var finDuProjet = copieDate(debutProjet);
+
+  // --- Premiere passe : on calcule les dates de chaque operation ---
+  // Le debut depend de l'operation choisie dans la colonne "Depend.".
+  // Plusieurs operations peuvent avoir la meme dependance : elles se
+  // chevauchent alors sur le diagramme (elles sont superposees).
+  for (var i = 0; i < operations.length; i++) {
+    var op = operations[i];
+
+    var debut;
+    if (op.apres === null || op.apres === undefined || operations[op.apres] === undefined) {
+      debut = copieDate(debutProjet);
+    } else {
+      debut = apresJoursOuvres(operations[op.apres]._fin, 1);
+    }
+
+    var heures = dureeEnHeures(op);
+    var fin = ajouteHeures(debut, heures);
+    chargeHeures += heures;
+
+    if (op.faite) faites++;
+
+    // On enregistre sur l'objet pour l'affichage
+    op._debut = debut;
+    op._fin = fin;
+    op._heures = heures;
+
+    if (fin.getTime() > finDuProjet.getTime()) finDuProjet = copieDate(fin);
+
+    // --- Construction de la ligne ---
+    var ligne = document.createElement("tr");
+
+    // Etat de la ligne
+    var etat = "a-venir";
+    if (op.faite) {
+      etat = "faite";
+      ligne.className = "faite";
+    } else if (debut.getTime() <= aujourdhui.getTime() && aujourdhui.getTime() <= fin.getTime()) {
+      etat = "en-cours";
+      ligne.className = "en-cours";
+    } else if (fin.getTime() < aujourdhui.getTime()) {
+      etat = "retard";
+      ligne.className = "retard";
+    }
+
+    // Colonne 1 : la case a cocher
+    var td1 = document.createElement("td");
+    var case1 = document.createElement("input");
+    case1.type = "checkbox";
+    case1.className = "case";
+    case1.checked = op.faite;
+    case1.setAttribute("data-index", i);
+    case1.onchange = function () {
+      var index = Number(this.getAttribute("data-index"));
+      operations[index].faite = this.checked;
+      enregistrerEtRafraichir();
+    };
+    td1.appendChild(case1);
+    ligne.appendChild(td1);
+
+    // Colonne 2 : le nom de l'operation (modifiable)
+    var td2 = document.createElement("td");
+    var champNom = document.createElement("input");
+    champNom.type = "text";
+    champNom.className = "nom";
+    champNom.value = op.nom;
+    champNom.setAttribute("data-index", i);
+    champNom.oninput = function () {
+      var index = Number(this.getAttribute("data-index"));
+      operations[index].nom = this.value;
+      planifierSauvegarde();
+    };
+    td2.appendChild(champNom);
+    ligne.appendChild(td2);
+
+    // Colonne 3 : la duree + l'unite
+    var td3 = document.createElement("td");
+    var champDuree = document.createElement("input");
+    champDuree.type = "number";
+    champDuree.className = "duree";
+    champDuree.min = "0";
+    champDuree.step = "0.5";
+    champDuree.value = op.duree;
+    champDuree.setAttribute("data-index", i);
+    champDuree.oninput = function () {
+      var index = Number(this.getAttribute("data-index"));
+      var valeur = Number(this.value);
+      if (isNaN(valeur) || valeur < 0) valeur = 0;
+      operations[index].duree = valeur;
+      planifierSauvegarde();
+    };
+    td3.appendChild(champDuree);
+
+    var champUnite = document.createElement("select");
+    champUnite.className = "unite";
+    champUnite.setAttribute("data-index", i);
+    var options = [["h", "h"], ["j", "j"], ["s", "sem."]];
+    for (var k = 0; k < options.length; k++) {
+      var o = document.createElement("option");
+      o.value = options[k][0];
+      o.textContent = options[k][1];
+      if (op.unite === options[k][0]) o.selected = true;
+      champUnite.appendChild(o);
+    }
+    champUnite.onchange = function () {
+      var index = Number(this.getAttribute("data-index"));
+      operations[index].unite = this.value;
+      enregistrerEtRafraichir();
+    };
+    td3.appendChild(champUnite);
+    ligne.appendChild(td3);
+
+    // Colonne 4 : date de debut
+    var td4 = document.createElement("td");
+    td4.className = "date";
+    td4.innerHTML = "<div>" + jourLisible(debut) + "</div><div class='jour'>" +
+      (debut.getTime() < debutProjet.getTime() ? "avant le debut" : "") + "</div>";
+    ligne.appendChild(td4);
+
+    // Colonne 5 : date de fin
+    var td5 = document.createElement("td");
+    td5.className = "date";
+    var texteRetard = "";
+    if (etat === "retard") texteRetard = "<div class='jour rouge'>en retard</div>";
+    td5.innerHTML = "<div>" + jourLisible(fin) + "</div>" + texteRetard;
+    ligne.appendChild(td5);
+
+    // Colonne 6 : badge d'etat
+    var td6 = document.createElement("td");
+    var libelles = {
+      "a-venir": "A venir",
+      "en-cours": "En cours",
+      "faite": "Terminee",
+      "retard": "En retard"
+    };
+    td6.innerHTML = "<span class='badge badge-" + etat.replace("-", "") + "'>" +
+      libelles[etat] + "</span>";
+    ligne.appendChild(td6);
+
+    // ColonnePriorite
+    var tdPrio = document.createElement("td");
+    var choixPrio = document.createElement("select");
+    choixPrio.className = "unite";
+    choixPrio.setAttribute("data-index", i);
+    var listePrio = [["Critique", "Critique"], ["Elevee", "Elevee"], ["Moyenne", "Moyenne"], ["Faible", "Faible"]];
+    for (var p = 0; p < listePrio.length; p++) {
+      var op2 = document.createElement("option");
+      op2.value = listePrio[p][0];
+      op2.textContent = listePrio[p][1];
+      if (op.prio === listePrio[p][0]) op2.selected = true;
+      choixPrio.appendChild(op2);
+    }
+    choixPrio.onchange = function () {
+      var index = Number(this.getAttribute("data-index"));
+      operations[index].prio = this.value;
+      enregistrerEtRafraichir();
+    };
+    tdPrio.appendChild(choixPrio);
+    ligne.appendChild(tdPrio);
+
+    // Colonne 7 : avancement reglable (0 a 100 %)
+    var td7 = document.createElement("td");
+    var pourcent = 0;
+    if (op.faite) pourcent = 100;
+    else if (etat === "en-cours") {
+      var total = fin.getTime() - debut.getTime();
+      var fait = aujourdhui.getTime() - debut.getTime();
+      pourcent = total > 0 ? Math.round((fait / total) * 100) : 0;
+    }
+    var classeBarre = "barre";
+    if (op.faite) classeBarre += " faite";
+    if (etat === "retard") classeBarre += " retard";
+    td7.innerHTML = "<div class='barre-fond'><div class='" + classeBarre +
+      "' style='width:" + pourcent + "%'></div></div>";
+    ligne.appendChild(td7);
+
+    // Colonne dependance : quelle operation doit finir avant celle-ci
+    var tdDep = document.createElement("td");
+    var choixDep = document.createElement("select");
+    choixDep.className = "unite";
+    choixDep.style.maxWidth = "110px";
+    choixDep.setAttribute("data-index", i);
+
+    var optAucun = document.createElement("option");
+    optAucun.value = "";
+    optAucun.textContent = "aucune";
+    choixDep.appendChild(optAucun);
+
+    for (var j = 0; j < operations.length; j++) {
+      if (j >= i) continue;   // on ne peut dependre que d'une operation placee avant
+      var optJ = document.createElement("option");
+      optJ.value = j;
+      optJ.textContent = operations[j].nom;
+      if (op.apres === j) optJ.selected = true;
+      choixDep.appendChild(optJ);
+    }
+
+    choixDep.onchange = function () {
+      var index = Number(this.getAttribute("data-index"));
+      if (this.value === "") {
+        operations[index].apres = null;
+      } else {
+        creerDependance(Number(this.value), index);
+      }
+      enregistrerEtRafraichir();
+    };
+    tdDep.appendChild(choixDep);
+    ligne.appendChild(tdDep);
+
+    // Colonne 8 : bouton supprimer
+    var td8 = document.createElement("td");
+    var bouton = document.createElement("button");
+    bouton.className = "suppr";
+    bouton.textContent = "X";
+    bouton.title = "Supprimer cette operation";
+    bouton.setAttribute("data-index", i);
+    bouton.onclick = function () {
+      var index = Number(this.getAttribute("data-index"));
+      operations.splice(index, 1);
+      enregistrerEtRafraichir();
+    };
+    td8.appendChild(bouton);
+    ligne.appendChild(td8);
+
+    corps.appendChild(ligne);
+  }
+
+  afficherSynthese(debutProjet, finDuProjet, chargeHeures, faites);
+}
+
+/* ---------- Diagramme a barres (le Gantt visuel) ---------- */
+
+// Dessine une barre par operation, toutes sur la meme echelle de temps.
+// Les barres d'une meme "colonne" sont superposees : on les empile
+// visuellement pour bien voir qu'elles se chevauchent.
+function afficherDiagramme(debutProjet, finDuProjet, aujourdhui) {
+  var zone = document.getElementById("diagramme");
+  var entete = document.getElementById("enteteDiag");
+  var boite = zone.parentNode;              // la zone qui defile
+  zone.innerHTML = "";
+  entete.innerHTML = "";
+
+  // --- Qui depend de qui, pour savoir combien dessiner de "pistes" ---
+  // Niveau 0 = commence au debut du projet. Niveau n = suit une operation
+  // de niveau n-1. Deux operations de meme niveau se chevauchent.
+  var niveau = [];
+  for (var i = 0; i < operations.length; i++) {
+    if (operations[i].apres === null || operations[i].apres === undefined) {
+      niveau[i] = 0;
+    } else {
+      niveau[i] = niveau[operations[i].apres] + 1;
+    }
+  }
+
+  // Le diagramme s'arrete a la plus tardive des deux dates.
+  var butoir = new Date(document.getElementById("dateButoir").value);
+  var finAffichage = copieDate(finDuProjet);
+  if (!isNaN(butoir.getTime()) && butoir.getTime() > finAffichage.getTime()) {
+    finAffichage = copieDate(butoir);
+  }
+  if (finAffichage.getTime() <= debutProjet.getTime()) {
+    finAffichage = ajouteJours(debutProjet, 1);
+  }
+
+  // On passe en pixels : le graphique mesure max(600, nb de jours x 6).
+  var nbJours = Math.round((finAffichage.getTime() - debutProjet.getTime()) / 86400000) + 1;
+  var largeur = Math.max(600, nbJours * 6);
+  var parJour = largeur / nbJours;
+
+  function position(date) {
+    var jours = (date.getTime() - debutProjet.getTime()) / 86400000;
+    return jours * parJour;
+  }
+  function pourcent(px) {
+    return (px / largeur) * 100;
+  }
+
+  // --- Remplissage par niveau : plusieurs operations, une seule ligne ---
+  var pistes = [];               // pistes[n][0] = liste des operations
+  for (var i = 0; i < operations.length; i++) {
+    var n = niveau[i];
+    if (!pistes[n]) pistes[n] = [];
+    pistes[n].push(i);
+  }
+
+  for (var n = 0; n < pistes.length; n++) {
+    if (!pistes[n]) continue;
+
+    var ligneDiag = document.createElement("div");
+    ligneDiag.className = "ligne-diag";
+
+    var etiq = document.createElement("div");
+    etiq.className = "etiquette-diag";
+    etiq.id = "etiq" + n;
+    etiq.title = "Depend de : " + (n === 0 ? "rien (debut du projet)" : "niveau " + (n - 1));
+    ligneDiag.appendChild(etiq);
+
+    var piste = document.createElement("div");
+    piste.className = "piste";
+    piste.style.minWidth = largeur + "px";
+    piste.id = "piste" + n;
+
+    // Les barres de ce niveau
+    for (var k = 0; k < pistes[n].length; k++) {
+      var i = pistes[n][k];
+      var op = operations[i];
+      var barre = document.createElement("div");
+      barre.className = "barre-diag";
+
+      // Etat de la barre + couleur
+      var nb = Math.round(op._heures / heuresParJour());
+      var texteDuree = nb + " j";
+      if (op.unite === "h") texteDuree = op.duree + " h";
+      else if (op.unite === "s") texteDuree = op.duree + " sem.";
+
+      var classe = "";
+      var id = "a-venir";
+      if (op.faite) { classe = "faite"; id = "faite"; }
+      else if (op._debut.getTime() <= aujourdhui.getTime() && aujourdhui.getTime() <= op._fin.getTime()) {
+        classe = "encours"; id = "en cours";
+      } else if (op._fin.getTime() < aujourdhui.getTime()) {
+        classe = "retard"; id = "en retard";
+      }
+      barre.className = "barre-diag " + classe;
+      barre.title = op.nom + " - du " + jourLisible(op._debut) + " au " + jourLisible(op._fin) +
+        " (" + texteDuree + ", " + id + ")";
+
+      // Position et largeur, en pourcentage pour que le zoom marche
+      var pos = position(op._debut);
+      var largeurBarre = position(op._fin) - pos;
+      if (largeurBarre < 3) largeurBarre = 3;   // une barre toujours visible
+      barre.style.left = pourcent(pos) + "%";
+      barre.style.width = pourcent(largeurBarre) + "%";
+
+      var texte = document.createElement("span");
+      texte.textContent = texteDuree;
+      barre.appendChild(texte);
+
+      // On garde le nom a part : le clic l'affichera sous le diagramme
+      barre.setAttribute("data-nom", op.nom);
+      barre.onclick = function () {
+        var champ = document.getElementById("opSelectionnee");
+        if (champ) {
+          champ.textContent = this.getAttribute("data-nom") + "  |  " +
+            this.getAttribute("data-detail");
+        }
+      };
+      barre.setAttribute("data-detail", "du " + jourLisible(op._debut) + " au " +
+        jourLisible(op._fin) + " (" + texteDuree + ", " + id + ")");
+
+      piste.appendChild(barre);
+    }
+
+    // Reperes : aujourd'hui (bleu continu) et date butoir (rouge pointille)
+    var repereAuj = document.createElement("div");
+    repereAuj.className = "repere-aujourdhui";
+    repereAuj.style.left = pourcent(position(aujourdhui)) + "%";
+    var motAuj = document.createElement("i");
+    motAuj.textContent = "aujourd'hui";
+    repereAuj.appendChild(motAuj);
+    piste.appendChild(repereAuj);
+
+    if (!isNaN(butoir.getTime())) {
+      var repereButoir = document.createElement("div");
+      repereButoir.className = "repere-butoir";
+      repereButoir.style.left = pourcent(position(butoir)) + "%";
+      var motButoir = document.createElement("b");
+      motButoir.textContent = "butoir";
+      repereButoir.appendChild(motButoir);
+      piste.appendChild(repereButoir);
+    }
+
+    // Grille verticale tous les 7 jours
+    for (var j = 0; j < nbJours; j += 7) {
+      var grille = document.createElement("div");
+      grille.className = "grille";
+      grille.style.left = (j * parJour / largeur) * 100 + "%";
+      piste.appendChild(grille);
+    }
+
+    ligneDiag.appendChild(piste);
+    zone.appendChild(ligneDiag);
+  }
+
+  // --- Remplissage des etiquettes : nom des operations du niveau ---
+  for (var n = 0; n < pistes.length; n++) {
+    if (!pistes[n]) continue;
+    var etiq = document.getElementById("etiq" + n);
+    var noms = [];
+    for (var k = 0; k < pistes[n].length && k < 3; k++) {
+      noms.push(operations[pistes[n][k]].nom);
+    }
+    etiq.textContent = noms.join(" / ");
+    etiq.title = etiq.textContent;
+  }
+
+  // --- Echelle des dates, en haut du diagramme ---
+  var pas = Math.max(1, Math.round(nbJours / 8));
+  for (var j = 0; j <= nbJours; j += pas) {
+    var d = ajouteJours(debutProjet, j);
+    var marque = document.createElement("div");
+    marque.className = "date-diag";
+    marque.style.left = (j * parJour / largeur) * 100 + "%";
+    marque.textContent = jourLisible(d);
+    entete.appendChild(marque);
+  }
+  entete.style.minWidth = largeur + "px";
+}
+
+/* ---------- Bandeau de synthese ---------- */
+
+function afficherSynthese(debutProjet, finDuProjet, chargeHeures, faites) {
+  var finPrevue = copieDate(finDuProjet);
+  var butoirTexte = document.getElementById("dateButoir").value;
+  var messages = document.getElementById("messages");
+
+  // Nombre de jours ouvres de charge (arrondi)
+  var hParJour = heuresParJour();
+  var joursCharge = Math.ceil(chargeHeures / hParJour);
+
+  document.getElementById("finPrevue").textContent = jourLisible(finPrevue) + " " + finPrevue.getFullYear();
+  document.getElementById("charge").textContent = joursCharge + " jours (" + chargeHeures + " h)";
+  document.getElementById("avancement").textContent = faites + " / " + operations.length;
+
+  messages.innerHTML = "";
+
+  if (butoirTexte) {
+    var butoir = new Date(butoirTexte);
+    document.getElementById("butoirAffiche").textContent =
+      jourLisible(butoir) + " " + butoir.getFullYear();
+
+    // Combien de jours de difference entre la fin prevue et la date butoir
+    var diff = Math.round((finPrevue.getTime() - butoir.getTime()) / (1000 * 60 * 60 * 24));
+    var champEcart = document.getElementById("ecart");
+
+    if (diff > 0) {
+      champEcart.textContent = "+" + diff + " jours";
+      champEcart.className = "valeur rouge";
+      messages.innerHTML = "<div>Attention : la date butoir est depassee de " + diff +
+        " jours. Il faut reduire une duree ou decaler une operation.</div>";
+    } else if (diff === 0) {
+      champEcart.textContent = "pile a la date butoir";
+      champEcart.className = "valeur";
+    } else {
+      champEcart.textContent = Math.abs(diff) + " jours d'avance";
+      champEcart.className = "valeur vert";
+      messages.innerHTML = "<div class='info'>Le planning tient : il reste " +
+        Math.abs(diff) + " jours avant la date butoir.</div>";
+    }
+  } else {
+    document.getElementById("butoirAffiche").textContent = "non renseignee";
+    document.getElementById("ecart").textContent = "-";
+  }
+}
+
+/* ---------- Sauvegarde (avec un petit delai) ---------- */
+
+function planifierSauvegarde() {
+  if (fileAttente) clearTimeout(fileAttente);
+  fileAttente = setTimeout(function () {
+    enregistrerEtRafraichir();
+  }, 500);
+}
+
+function enregistrerEtRafraichir() {
+  sauvegarder();
+  afficher();
+}
+
+/* ---------- Passage d'une page a l'autre (onglets) ---------- */
+
+function afficherOnglet(page) {
+  var suivi = document.getElementById("pageSuivi");
+  var gantt = document.getElementById("pageGantt");
+  var ongletSuivi = document.getElementById("ongletSuivi");
+  var ongletGantt = document.getElementById("ongletGantt");
+  var sousTitre = document.getElementById("sousTitre");
+
+  if (page === "gantt") {
+    suivi.style.display = "none";
+    gantt.style.display = "";
+    ongletGantt.className = "onglet actif";
+    ongletSuivi.className = "onglet";
+    sousTitre.textContent = "Diagramme de Gantt : les memes operations que la page 1, posees sur un calendrier.";
+    // On recopie les reglages de la page 1 vers la page 2, seulement
+    // s'ils sont remplis (sinon on effacerait des dates valides).
+    if (document.getElementById("dateDebut").value) {
+      recopierReglages(1, 2);
+    }
+    afficherGantt();
+  } else {
+    suivi.style.display = "";
+    gantt.style.display = "none";
+    ongletSuivi.className = "onglet actif";
+    ongletGantt.className = "onglet";
+    sousTitre.textContent = "Chaque operation s'empile apres la precedente. Si une duree change, tout ce qui suit se decale.";
+    recopierReglages(2, 1);
+    afficher();
+  }
+}
+
+// Recopie les quatre reglages d'une page vers l'autre (suffixe 1 ou 2)
+function recopierReglages(de, vers) {
+  var champs = ["dateDebut", "dateButoir", "densite", "heures"];
+  for (var i = 0; i < champs.length; i++) {
+    var valeur = document.getElementById(champs[i] + de).value;
+    if (valeur) document.getElementById(champs[i] + vers).value = valeur;
+  }
+}
+
+/* ---------- Le diagramme de Gantt (page 2) ---------- */
+
+/* =========================================================
+   PAGE 2 : LE GANTT
+   Les barres sont posees SUR une bande de jours, en escalier.
+   On peut les DEPLACER a la souris : le planning se recalcule.
+   ========================================================= */
+
+var LARGEUR_JOUR = 14;        // largeur d'une case-jour (modifiee par le zoom)
+var ganttBouge = null;        // tache en cours de deplacement
+
+function afficherGantt() {
+  var bandeau = document.getElementById("ganttBandeau");
+  var pistes = document.getElementById("ganttPistes");
+  var noms = document.getElementById("ganttNoms");
+  if (!bandeau || !pistes) return;   // securite : si la page n'est pas la, on ne fait rien
+  bandeau.innerHTML = "";
+  pistes.innerHTML = "";
+  if (noms) noms.innerHTML = "";
+
+  // L'entete de la colonne des noms : les memes hauteurs que le bandeau
+  if (noms) {
+    var titreNom = document.createElement("div");
+    titreNom.className = "ligne-nom titre-nom";
+    titreNom.textContent = "Taches";
+    noms.appendChild(titreNom);
+  }
+
+  if (operations.length === 0) return;
+
+  LARGEUR_JOUR = Number(document.getElementById("zoom").value);
+  if (!LARGEUR_JOUR || LARGEUR_JOUR < 6) LARGEUR_JOUR = 14;
+
+  var hJour = Number(document.getElementById("heures").value);
+  if (hJour < 1 || isNaN(hJour)) hJour = 7;
+  var densite = Number(document.getElementById("densite").value);
+
+  var debutProjet = new Date(document.getElementById("dateDebut").value);
+  if (isNaN(debutProjet.getTime())) debutProjet = new Date();
+  debutProjet = copieDate(debutProjet);
+
+  var butoir = new Date(document.getElementById("dateButoir").value);
+  var aujourdhui = copieDate(new Date());
+
+  // --- Calcul des dates, dans l'ordre de la liste ---
+  var finProjet = copieDate(debutProjet);
+  for (var i = 0; i < operations.length; i++) {
+    var op = operations[i];
+    op._debut = dateDebutOperation(op, debutProjet, hJour, densite);
+    op._fin = ajouteHeuresDensite(op._debut, dureeHeuresDensite(op, hJour), hJour, densite);
+    if (op._fin.getTime() > finProjet.getTime()) finProjet = copieDate(op._fin);
+  }
+
+  var butoir2 = new Date(document.getElementById("dateButoir").value);
+  if (isNaN(butoir2.getTime())) butoir2 = butoir;
+  var finBande = (!isNaN(butoir2.getTime())) ? copieDate(butoir2) : copieDate(finProjet);
+
+  // --- MODE "TOUT RENTRE DANS LA DATE BUTOIR" ---
+  // Si la derniere tache depasse le terme, on resserre le temps de travail
+  // de TOUTES les taches reliees, jusqu'a ce que la derniere finisse a temps.
+  // Les durees affichees (3 j, 1 sem.) ne changent pas : c'est le calendrier
+  // qui se comprime, on travaille simplement plus vite sur chaque jour.
+  var facteur = 1;
+  var butoirRecalculee = new Date(document.getElementById("dateButoir").value);
+  if (isNaN(butoirRecalculee.getTime())) butoirRecalculee = butoir;
+  if (!isNaN(butoirRecalculee.getTime()) && finProjet.getTime() > butoirRecalculee.getTime()) {
+    var joursDispo = Math.max(1, Math.round((butoirRecalculee.getTime() - debutProjet.getTime()) / 86400000) + 1);
+    var joursNecessaires = Math.round((finProjet.getTime() - debutProjet.getTime()) / 86400000) + 1;
+    facteur = joursDispo / joursNecessaires;
+    if (facteur < 0.05) facteur = 0.05;
+
+    // On recalcule toutes les dates avec ce facteur
+    var curseur = copieDate(debutProjet);
+    for (var r = 0; r < operations.length; r++) {
+      var or = operations[r];
+      var debutR;
+      if (or.demarre && or._debutManuel) debutR = copieDate(or._debutManuel);
+      else if (or.apres === null || or.apres === undefined || !operations[or.apres]) debutR = copieDate(debutProjet);
+      else debutR = apresJours(debutProjet, operations[or.apres]._fin, densite);
+
+      var heuresR = dureeHeuresDensite(or, hJour) * facteur;
+      or._debut = debutR;
+      or._fin = ajouteHeuresDensite(debutR, heuresR, hJour, densite);
+      if (or._fin.getTime() > finProjet.getTime()) finProjet = copieDate(or._fin);
+    }
+  }
+
+  if (finProjet.getTime() > finBande.getTime()) finBande = copieDate(finProjet);
+
+  // On previent l'utilisateur qu'on a resserre le planning
+  var bandeauInfo = document.getElementById("infoResserrage");
+  if (bandeauInfo) {
+    if (facteur < 1) {
+      var gain = Math.round((1 - facteur) * 100);
+      bandeauInfo.style.display = "";
+      bandeauInfo.innerHTML = "Le planning ne rentrait pas dans la date butoir : " +
+        "toutes les taches ont ete resserrees de <b>" + gain + " %</b> pour que la derniere finisse a temps. " +
+        "Les durees affichees sont inchangees.";
+    } else {
+      bandeauInfo.style.display = "none";
+    }
+  }
+  var nbJours = Math.round((finBande.getTime() - debutProjet.getTime()) / 86400000) + 1;
+  if (nbJours < 1) nbJours = 1;
+  if (nbJours > 500) nbJours = 500;
+
+  // =====================================================
+  // 1) LE BANDEAU DES MOIS ET DES JOURS
+  // =====================================================
+  var ligneMois = document.createElement("div");
+  ligneMois.className = "gantt-mois";
+  var ligneJours = document.createElement("div");
+  ligneJours.className = "gantt-jours";
+
+  var moisCourant = "";
+  var compteur = 0;
+  for (var j = 0; j < nbJours; j++) {
+    var d = ajouteJours(debutProjet, j);
+
+    var cj = document.createElement("div");
+    cj.className = "case-jour";
+    if (!estTravailleDensite(d, densite)) cj.className += " repos";
+    if (d.getTime() === aujourdhui.getTime()) cj.className += " auj";
+    cj.textContent = (LARGEUR_JOUR >= 11) ? d.getDate() : "";
+    cj.title = jourLisible(d) + " " + d.getFullYear();
+    ligneJours.appendChild(cj);
+
+    var nomMois = ["janvier","fevrier","mars","avril","mai","juin","juillet",
+                   "aout","septembre","octobre","novembre","decembre"][d.getMonth()];
+    if (nomMois !== moisCourant) {
+      var em = document.createElement("div");
+      em.className = "mois";
+      em.textContent = nomMois + " " + d.getFullYear();
+      ligneMois.appendChild(em);
+      moisCourant = nomMois;
+      compteur = 1;
+    } else {
+      compteur++;
+    }
+    if (ligneMois.lastChild) ligneMois.lastChild.style.width = (compteur * LARGEUR_JOUR) + "px";
+  }
+
+  bandeau.style.width = (nbJours * LARGEUR_JOUR) + "px";
+  bandeau.appendChild(ligneMois);
+  bandeau.appendChild(ligneJours);
+
+  // =====================================================
+  // 2) LE TABLEAU DE GAUCHE + LES BARRES EN ESCALIER
+  // =====================================================
+  for (var i = 0; i < operations.length; i++) {
+    var op = operations[i];
+
+    if (op.avancement === undefined || op.avancement === null) {
+      op.avancement = op.faite ? 100 : 0;
+    }
+
+    var etat = "a-venir";
+    if (op.faite || op.avancement >= 100) etat = "faite";
+    else if (op._debut.getTime() <= aujourdhui.getTime() && aujourdhui.getTime() <= op._fin.getTime()) etat = "encours";
+    else if (op._fin.getTime() < aujourdhui.getTime()) etat = "retard";
+
+
+    // ---- la ligne du nom, dans la colonne de gauche ----
+    if (noms) {
+      var ln = document.createElement("div");
+      ln.className = "ligne-nom";
+      if (i === ganttSelectionIndex()) ln.className += " choisie";
+      ln.textContent = op.nom;
+      ln.title = op.nom + " : " + jourCourt(op._debut) + " -> " + jourCourt(op._fin) +
+        " (" + texteDureeOperation(op) + ")";
+      noms.appendChild(ln);
+    }
+
+    // ---- la ligne du graphique ----
+    var lg = document.createElement("div");
+    lg.className = "ligne-gantt";
+    lg.style.width = (nbJours * LARGEUR_JOUR) + "px";
+    lg.setAttribute("data-index", i);
+
+    // cases-jours de fond
+    for (var j = 0; j < nbJours; j++) {
+      var d2 = ajouteJours(debutProjet, j);
+      var cg = document.createElement("div");
+      cg.className = "case-graph";
+      cg.style.width = LARGEUR_JOUR + "px";
+      cg.style.left = (j * LARGEUR_JOUR) + "px";
+      if (!estTravailleDensite(d2, densite)) cg.className += " repos";
+      lg.appendChild(cg);
+    }
+
+    // grille verticale : un trait par mois
+    var dernierMois = -1;
+    for (var j = 0; j < nbJours; j++) {
+      var dm = ajouteJours(debutProjet, j);
+      if (dm.getMonth() !== dernierMois) {
+        var gv = document.createElement("div");
+        gv.className = "grille-mois";
+        gv.style.left = (j * LARGEUR_JOUR) + "px";
+        lg.appendChild(gv);
+        dernierMois = dm.getMonth();
+      }
+    }
+
+    // LA BARRE, en escalier
+    var posJours = Math.round((op._debut.getTime() - debutProjet.getTime()) / 86400000);
+    var dureeJours = Math.max(1, Math.round((op._fin.getTime() - op._debut.getTime()) / 86400000));
+
+    var barre = document.createElement("div");
+    barre.className = "barre esc-" + (i % 4) + " etat-" + etat;
+    barre.style.left = (posJours * LARGEUR_JOUR) + "px";
+    barre.style.width = (dureeJours * LARGEUR_JOUR) + "px";
+    barre.title = op.nom + " : du " + jourLisible(op._debut) + " au " + jourLisible(op._fin) +
+      " (" + dureeJours + " jours) - attrapez la barre pour la deplacer";
+    barre.setAttribute("data-index", i);
+
+    if (i === ganttSelectionIndex()) barre.className += " choisie";
+
+    // la bande d'avancement, a l'interieur de la barre
+    var av = document.createElement("div");
+    av.className = "barre-avance";
+    av.style.width = (op.avancement || 0) + "%";
+    barre.appendChild(av);
+
+    // la duree ecrite sur la barre
+    if (dureeJours * LARGEUR_JOUR > 22) {
+      var txt = document.createElement("span");
+      txt.className = "barre-texte";
+      txt.textContent = op.duree;
+      barre.appendChild(txt);
+    }
+
+    // ---- deplacement a la souris ----
+    barre.onmousedown = function (evt) { demarrerDeplacement(evt, this); };
+    barre.onclick = function (evt) {
+      ganttSelection = Number(this.getAttribute("data-index"));
+      afficherGantt();
+      evt.stopPropagation();
+    };
+
+    lg.appendChild(barre);
+
+    // traits butoir et aujourd'hui
+    if (!isNaN(butoir.getTime())) {
+      var pb = Math.round((butoir.getTime() - debutProjet.getTime()) / 86400000);
+      if (pb >= 0 && pb < nbJours) {
+        var rb = document.createElement("div");
+        rb.className = "repere-butoir";
+        rb.style.left = (pb * LARGEUR_JOUR + LARGEUR_JOUR / 2) + "px";
+        lg.appendChild(rb);
+      }
+    }
+    var pa = Math.round((aujourdhui.getTime() - debutProjet.getTime()) / 86400000);
+    if (pa >= 0 && pa < nbJours) {
+      var ra = document.createElement("div");
+      ra.className = "repere-aujourdhui";
+      ra.style.left = (pa * LARGEUR_JOUR + LARGEUR_JOUR / 2) + "px";
+      lg.appendChild(ra);
+    }
+
+    pistes.appendChild(lg);
+  }
+
+}
+
+// -------- petites fonctions de calcul --------
+
+function estTravailleDensite(d, densite) {
+  if (densite === 2) return true;
+  var j = d.getDay();
+  return j !== 0 && j !== 6;
+}
+
+function dureeHeuresDensite(op, hJour) {
+  if (op.unite === "h") return op.duree;
+  if (op.unite === "s") return op.duree * 5 * hJour;
+  return op.duree * hJour;
+}
+
+function ajouteHeuresDensite(debut, heures, hJour, densite) {
+  var d = copieDate(debut);
+  var reste = heures;
+  var secu = 0;
+  while (reste > 0 && secu < 3000) {
+    if (!estTravailleDensite(d, densite)) { d = ajouteJours(d, 1); secu++; continue; }
+    if (reste >= hJour) { reste -= hJour; d = ajouteJours(d, 1); }
+    else reste = 0;
+    secu++;
+  }
+  return d;
+}
+
+function dateDebutOperation(op, debutProjet, hJour, densite) {
+  if (op.demarre && op._debutManuel) return copieDate(op._debutManuel);
+  if (op.apres === null || op.apres === undefined || !operations[op.apres]) {
+    return copieDate(debutProjet);
+  }
+  return apresJours(debutProjet, operations[op.apres]._fin, densite);
+}
+
+// le lendemain travaille d'une date
+function apresJours(base, finPrecedente, densite) {
+  var d = copieDate(finPrecedente);
+  var secu = 0;
+  do { d = ajouteJours(d, 1); secu++; } while (!estTravailleDensite(d, densite) && secu < 60);
+  return d;
+}
+
+// Duree d'une operation en texte ("3 j", "2 sem.", "14 h")
+function texteDureeOperation(op) {
+  if (op.unite === "h") return op.duree + " h";
+  if (op.unite === "s") return op.duree + " sem.";
+  return op.duree + " j";
+}
+
+// -------- le deplacement a la souris --------
+
+function demarrerDeplacement(evt, barre) {
+  var index = Number(barre.getAttribute("data-index"));
+  ganttBouge = {
+    index: index,
+    departX: evt.clientX,
+    joursInitiaux: Math.round((operations[index]._debut - new Date(document.getElementById("dateDebut").value)) / 86400000)
+  };
+  barre.style.cursor = "grabbing";
+  document.body.style.userSelect = "none";
+  evt.preventDefault();
+}
+
+function suivreDeplacement(evt) {
+  if (!ganttBouge) return;
+  var ecart = Math.round((evt.clientX - ganttBouge.departX) / LARGEUR_JOUR);
+  var nouveauJour = ganttBouge.joursInitiaux + ecart;
+
+  var debutProjet = copieDate(new Date(document.getElementById("dateDebut").value));
+  var nouvelleDate = ajouteJours(debutProjet, nouveauJour);
+
+  // la tache se cale au plus tot sur la fin de celle dont elle depend
+  var op = operations[ganttBouge.index];
+  if (op.apres !== null && op.apres !== undefined && operations[op.apres] && operations[op.apres]._fin) {
+    var minimum = apresJours(debutProjet, operations[op.apres]._fin, Number(document.getElementById("densite").value));
+    if (nouvelleDate.getTime() < minimum.getTime()) nouvelleDate = minimum;
+  }
+  if (nouvelleDate.getTime() < debutProjet.getTime()) nouvelleDate = debutProjet;
+
+  op.demarre = true;
+  op._debutManuel = nouvelleDate;
+  afficherGantt();
+}
+
+function terminerDeplacement() {
+  if (!ganttBouge) return;
+  ganttBouge = null;
+  document.body.style.userSelect = "";
+  sauvegarder();
+  document.getElementById("ganttSelection").textContent =
+    "Position modifiee. Les taches suivantes ont ete reculees.";
+}
+
+document.addEventListener("mousemove", suivreDeplacement);
+document.addEventListener("mouseup", terminerDeplacement);
+
+// -------- le detail et les boutons --------
+
+var ganttSelection = 0;
+function ganttSelectionIndex() { return ganttSelection; }
+
+
+
+
+
+
+
+// Retourne le nom de l'operation dont depend celle-ci ("-" si aucune)
+function nomDependance(i) {
+  var a = operations[i].apres;
+  if (a === null || a === undefined || operations[a] === undefined) return "-";
+  return operations[a].nom;
+}
+
+// Date courte pour le tableau et l'echelle : "17/11"
+function jourCourt(date) {
+  var d = String(date.getDate()).padStart(2, "0");
+  var m = String(date.getMonth() + 1).padStart(2, "0");
+  return d + "/" + m;
+}
+
+/* ---------- Boutons ---------- */
+
+function ajouterOperation() {
+  operations.push({
+    nom: "Nouvelle operation",
+    duree: 1,
+    unite: "j",
+    faite: false
+  });
+  enregistrerEtRafraichir();
+}
+
+function reinitialiser() {
+  if (!confirm("Remettre les operations par defaut ? Vos modifications seront perdues.")) return;
+  operations = [];
+  for (var i = 0; i < OPERATIONS_DEFAUT.length; i++) {
+    var o = OPERATIONS_DEFAUT[i];
+    operations.push({ nom: o.nom, duree: o.duree, unite: o.unite, faite: false });
+  }
+  enregistrerEtRafraichir();
+}
+
+/* ---------- Demarrage ---------- */
+
+function demarrer() {
+  // On part TOUJOURS de la liste complete des operations par defaut,
+  // puis on recupere ce que l'utilisateur avait saisi (durees, cases cochees).
+  for (var i = 0; i < OPERATIONS_DEFAUT.length; i++) {
+    var o = OPERATIONS_DEFAUT[i];
+    operations.push({
+      nom: o.nom, duree: o.duree, unite: o.unite,
+      apres: o.apres, prio: o.prio, faite: false
+    });
+  }
+
+  var chargement = charger();
+
+  // Premier lancement (aucune sauvegarde) : on propose des dates a modifier.
+  if (!chargement) {
+    // Date de debut : dans 3 jours
+    var debut = ajouteJours(new Date(), 3);
+    document.getElementById("dateDebut").value = jourValeur(debut);
+    // Date butoir : dans 3 mois, choisie par vous
+    var butoir = ajouteJours(new Date(), 90);
+    document.getElementById("dateButoir").value = jourValeur(butoir);
+  }
+
+  // Les dates de la page 2 partent des memes valeurs
+  document.getElementById("dateDebut").value = document.getElementById("dateDebut").value;
+  document.getElementById("dateButoir").value = document.getElementById("dateButoir").value;
+  document.getElementById("densite").value = document.getElementById("densite").value;
+  document.getElementById("heures").value = document.getElementById("heures").value;
+
+  // Les reglages de la page 1 alimentent les deux pages
+  document.getElementById("dateDebut").onchange = function () {
+    sauvegarder(); afficher(); afficherGantt();
+  };
+  document.getElementById("dateButoir").onchange = function () {
+    sauvegarder(); afficher(); afficherGantt();
+  };
+  document.getElementById("densite").onchange = function () {
+    sauvegarder(); afficher(); afficherGantt();
+  };
+  document.getElementById("heures").onchange = function () {
+    sauvegarder(); afficher(); afficherGantt();
+  };
+
+
+  afficher();
+}
+
+demarrer();
+</script>
+
+</body>
+</html>
